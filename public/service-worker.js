@@ -2,17 +2,17 @@ const FILES_TO_CACHE = [
     '/',
     '/index.html',
     '/manifest.json',
-    // '/models/transaction.js',
-    // '/routes/api.js',
-    '/service-worker.js',
     '/styles.css',
+    '/index.js',
     '/icons/icon-192x192.png',
     '/icons/icon-512x512.png'
+    // '../models/transaction.js',
+    // '../routes/api.js'
   ];
   
   const CACHE_NAME = "static-cache-v2";
-  
-  // INSTALL the event listener to the cache
+  const DATA_CACHE_NAME = "data-cache-v1";
+  // to install and register your service worker
   self.addEventListener('install', function(evt) {
       evt.waitUntil(
         caches.open(CACHE_NAME).then(cache => {
@@ -23,14 +23,13 @@ const FILES_TO_CACHE = [
   
       self.skipWaiting();
     });
-  
-  // REMOVING OLD DATA
-  self.addEventListener("activate", function(evt) {
+  // remove old data from the cache
+    self.addEventListener("activate", function(evt) {
       evt.waitUntil(
         caches.keys().then(keyList => {
           return Promise.all(
             keyList.map(key => {
-              if (key !== CACHE_NAME) {
+              if (key !== CACHE_NAME && key !== DATA_CACHE_NAME) {
                 console.log("Removing old cache data", key);
                 return caches.delete(key);
               }
@@ -42,15 +41,32 @@ const FILES_TO_CACHE = [
       self.clients.claim();
     });
   
-  
-  // FETCH req
-  self.addEventListener('fetch', function(evt) {
-    // if the request is not for the API, serve static assets using "offline-first" approach.
-    // see https://developers.google.com/web/fundamentals/instant-and-offline/offline-cookbook#cache-falling-back-to-network
-    evt.respondWith(
-      caches.match(evt.request).then(function(response) {
-        return response || fetch(evt.request);
-      })
-    );
-  });
-  
+  // Enable the service worker to intercept network requests
+    self.addEventListener('fetch', function(evt) {
+        if(evt.request.url.includes('/api/')) {
+            console.log('[Service Worker] Fetch (data)', evt.request.url);
+            evt.respondWith(
+                caches.open(DATA_CACHE_NAME).then(cache => {
+                    return fetch(evt.request)
+                    .then(response => {
+                        if(response.status === 200) {
+                            cache.put(evt.request.url, response.clone());
+                        }
+                        return response
+                    })
+                    .catch(err => {
+                        return cache.match(evt.request)
+                    })
+                })
+            )
+            return
+        }
+        //Serve static files from the cache. Proceed with a network request when the resource is not in the cache. This code allows the page to be accessible offline. (This code should be placed in the function handling the `fetch` event.)
+      evt.respondWith(
+          caches.open(CACHE_NAME).then(cache => {
+            return cache.match(evt.request).then(response => {
+              return response || fetch(evt.request);
+            });
+          })
+        );
+      });
