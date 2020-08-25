@@ -1,11 +1,9 @@
-// Uncomment the lines below
 const FILES_TO_CACHE = [
     '/',
     '/index.html',
     '/manifest.json',
     // '/models/transaction.js',
     // '/routes/api.js',
-    '/app.js',
     '/service-worker.js',
     '/styles.css',
     '/icons/icon-192x192.png',
